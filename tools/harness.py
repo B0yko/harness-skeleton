@@ -214,9 +214,9 @@ def hooks_by_shape(p, settings):
     ours = re.compile(
         r"/usr/bin/env python3(?: -[A-Za-z]+)* (?:%s)/core/hooks/(?:gate|session_start)\.py"
         r" --profile %s(?: \|\| \{ rc=\$\?; \[ -e (?:%s)/core/hooks/gate\.py \] \|\| "
-        r"echo '[^']*' >&2; exit \$rc; \})?$" % (roots, re.escape(shlex.quote(p.profile)), roots))
+        r"echo '[^']*' >&2; exit \$rc; \})?" % (roots, re.escape(shlex.quote(p.profile)), roots))
     return {h["command"] for h in handlers(settings)
-            if isinstance(h.get("command"), str) and ours.match(h["command"])}
+            if isinstance(h.get("command"), str) and ours.fullmatch(h["command"])}
 
 
 def points_into_root(p, path):
@@ -252,7 +252,9 @@ def merge_settings(current, ours, old, memory_dir, shared):
         for group in groups:
             if not all(h in present for h in group["hooks"]):
                 out.setdefault("hooks", {}).setdefault(event, []).append(group)
-    memory = memory_dir if out.get(MEMORY_KEY) == memory_dir else old.get("memory_value")
+    memory = old.get("memory_value")
+    if "links" not in old and old.get("hook_commands") and out.get(MEMORY_KEY) == memory_dir:
+        memory = memory_dir            # our hooks are there but their record was lost
     if shared and MEMORY_KEY not in out:
         out[MEMORY_KEY] = memory = memory_dir
     elif not shared and memory:

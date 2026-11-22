@@ -36,9 +36,13 @@ PRINTERS = {"cat", "tac", "nl", "head", "tail", "less", "more", "most", "bat", "
 # Files these programs use without printing them, or skip. For wget, -E takes no value.
 TLS_KEY_FLAGS = {"--key", "--cert", "--cacert", "--ca-certificate"}
 KEY_FLAGS = {"ssh": {"-i"}, "scp": {"-i"}, "sftp": {"-i"}, "curl": TLS_KEY_FLAGS | {"-E"},
-             "wget": TLS_KEY_FLAGS, "diff": {"-x", "--exclude"}, "zip": {"-x"},
+             "wget": TLS_KEY_FLAGS | {"--certificate", "--private-key"},
+             "diff": {"-x", "--exclude"}, "zip": {"-x"},
              "rsync": {"--exclude"}, "tar": {"--exclude"}, "gtar": {"--exclude"},
-             "grep": {"--exclude"}}
+             "grep": {"--exclude", "--exclude-dir"}}
+# Words that may stand before a segment's own program.
+LEADERS = {"sudo", "doas", "time", "nice", "ionice", "nohup", "timeout", "env", "command", "exec",
+           "stdbuf", "xargs", "if", "then", "else", "elif", "do", "while", "until", "!", "{"}
 
 SSH_PUBLIC = re.compile(r"(\.pub|^known_hosts.*|^authorized_keys|^config)$")
 SECRET_NAMES = {".envrc", ".netrc", ".pgpass", ".pypirc", ".git-credentials", ".npmrc", ".my.cnf",
@@ -172,7 +176,8 @@ def remove_data(s, cwd):
             stack.append('"')
         elif token[0] in "'\"" or token.startswith("$'"):
             value = phrase(token.lstrip("$")[1:-1], cwd)
-            alone = not s[m.start() - 1:m.start()].strip() and not s[i:i + 1].strip()
+            around = s[m.start() - 1:m.start()] + s[i:i + 1]
+            alone = not around.strip(" \t\n'\"")
             out.append(value or ("_" if alone else ""))    # a dropped word keeps its place
         elif token == "\n":
             out.append(token)
@@ -199,7 +204,7 @@ def runs_text(words, segment):
     names = set(map(base, words))
     if words[:1] == ["."] or names & RUNNERS or ("find" in names and names & FIND_EXEC):
         return True
-    only_flags = all(w.startswith("-") for w in words[1:])      # no script: it reads stdin
+    only_flags = all(w.startswith("-") or w == "_" for w in words[1:])   # no script: reads stdin
     reads_code = only_flags or re.search("<[<(]", segment) or any(map(INLINE_CODE.match, words))
     return reads_code and any(map(INTERPRETER.match, names))
 
@@ -249,13 +254,16 @@ def names_secret(text, cwd):
 def key_values(words, skip=0):
     """Indexes of values the segment's own program uses or skips without printing them."""
     known = PRINTERS.union(KEY_FLAGS)
+    first = base(words[skip]) if skip < len(words) else ""
+    if first not in known and first not in LEADERS:
+        return set()                   # `cp ssh -i .env x`: the program here is cp
     start = next((i for i in range(skip, len(words)) if base(words[i]) in known), None)
     if start is None:
         return set()
     flags = KEY_FLAGS.get(base(words[start]), ())
     stop = words.index("--", start) if "--" in words[start:] else len(words)
     own = range(start, stop)
-    return {i + 1 for i in own if words[i] in flags} | {
+    return {i + 1 for i in own if words[i] in flags and words[i - 1] not in flags} | {
         i for i in own if words[i][:2] in flags and words[i] not in flags}
 
 

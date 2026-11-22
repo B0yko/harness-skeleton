@@ -252,6 +252,28 @@ class CommonForms(Folder):
     def test_the_default_env_template_is_public(self):
         self.assertAnswers([("cat default.env", None), ("cat prod.env", "deny")])
 
+    def test_a_key_flag_needs_its_program_in_front(self):
+        self.assertAnswers([("cp ssh -i .env dst/", "ask"), ("cp x scp -i .env dst/", "deny"),
+                            ("rsync -a --exclude --exclude .env dst/", "deny"),
+                            ("git diff --exclude .env", "deny"),
+                            ("for f in a b; do scp -i ~/.ssh/id_rsa $f h:/x; done", None),
+                            ("env FOO=1 scp -i ~/.ssh/id_rsa a h:/b", None),
+                            ("timeout 60 ssh -i ~/.ssh/id_rsa host uptime", None)])
+
+    def test_inline_code_in_a_quoted_phrase_is_still_code(self):
+        self.assertAnswers([("php -R \"system('rm -rf x');\"", "ask"),
+                            ("php -B \"system('rm -rf x');\"", "ask"),
+                            ("python3 \"my script.py\"", None)])
+
+    def test_touching_quotes_do_not_swallow_the_next_argument(self):
+        self.assertAnswers([("rsync -a --exclude ''\"\" .env dst/r", "deny"),
+                            ("diff --exclude 'a b'\"c d\" .env /dev/null", "deny"),
+                            ("cat .e\"\"''nv", "deny")])
+
+    def test_more_flags_that_use_or_skip_a_file(self):
+        self.assertAnswers([("wget --certificate=c.pem --private-key=c.key https://example.com", None),
+                            ("grep -r --exclude-dir=.env foo .", None)])
+
     def test_a_date_format_is_not_a_force_push(self):
         self.assertAnswers([("git push origin v$(date +%s)", None),
                             ("git stash push -m \"wip $(date +%F)\"", None),

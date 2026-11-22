@@ -31,6 +31,8 @@ Uninstall reads the manifest. It removes a link only if it still points where th
 
 Uninstall never deletes your files. `~/.harness` stays whole, with the core clone and your profile, and uninstall prints the one command that removes it. Installing again picks both up. If the folder was deleted by hand, the hooks are still in `settings.json` and block every gated call; the block message and the README name the fix, which is to run the install command again.
 
+If the manifest is lost, uninstall cannot tell who made a link, so it removes every link in `rules`, `skills` and `agents` that points into `~/.harness`, including one you made yourself. The files behind those links stay.
+
 ## The gate
 
 `core/hooks/gate.py` is one command registered on `Bash`, `Monitor`, `Read`, `Edit`, `Write`, `NotebookEdit`, `Grep` and all MCP tools. It runs these checks and returns the strongest answer (deny, then ask, then silence):

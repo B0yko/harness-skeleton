@@ -314,6 +314,27 @@ class RecoveryAfterCustomizing(GitCase):
         self.assertFalse(os.path.exists(self.settings) and "autoMemoryDirectory" in self.read_settings())
 
 
+class HandSetMemory(HomeCase):
+    def test_a_memory_folder_set_by_hand_survives_install(self):
+        self.install()
+        value = os.path.join(self.home, ".harness", "profile", "memory")
+        data = self.read_settings()
+        data["autoMemoryDirectory"] = value
+        self.write(self.settings, json.dumps(data))
+        self.install()
+        self.assertEqual(self.read_settings().get("autoMemoryDirectory"), value)
+
+    def test_a_hook_that_differs_by_a_newline_is_the_users(self):
+        self.install()
+        data = self.read_settings()
+        command = data["hooks"]["SessionStart"][0]["hooks"][0]["command"] + "\n"
+        data["hooks"]["Stop"] = [{"hooks": [{"type": "command", "command": command}]}]
+        self.write(self.settings, json.dumps(data))
+        self.install()
+        self.assertEqual(self.harness("uninstall").returncode, 0)
+        self.assertEqual(self.read_settings()["hooks"]["Stop"][0]["hooks"][0]["command"], command)
+
+
 class ParallelFirstInstalls(GitCase):
     def test_every_parallel_first_install_succeeds(self):
         source = self.source()
