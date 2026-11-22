@@ -274,6 +274,29 @@ class CommonForms(Folder):
         self.assertAnswers([("wget --certificate=c.pem --private-key=c.key https://example.com", None),
                             ("grep -r --exclude-dir=.env foo .", None)])
 
+    def test_empty_quotes_at_a_word_edge_hide_nothing(self):
+        self.assertAnswers([(c, "deny") for c in (
+            "cat .env\"\"''", "cat .env''\"\"", "cat .netrc\"\"''", "cat \"\"''.netrc",
+            "cat ''\"\".envrc", "cat .e''\"\"nv")])
+
+    def test_an_empty_flag_value_does_not_take_the_next_word(self):
+        self.assertAnswers([("grep . --exclude-dir= .env", "ask"),
+                            ("grep . --exclude= .env", "ask"),
+                            ("wget --private-key= .env", "deny")])
+
+    def test_a_quoted_note_to_a_script_stays_data(self):
+        self.assertAnswers([('python3 "my script.py" "note about .env"', None),
+                            ('node "my app.js" "say rm -rf loudly"', None)])
+
+    def test_php_line_code_is_code_behind_a_prefix_too(self):
+        self.assertAnswers([("sudo php -R \"system('rm -rf x');\"", "ask"),
+                            ("php -d x=1 -R \"system('rm -rf x');\"", "ask")])
+
+    def test_a_key_behind_a_common_wrapper_is_used_not_printed(self):
+        self.assertAnswers([("sshpass -p x ssh -i ~/.ssh/id_rsa h uptime", None),
+                            ("gtimeout 60 ssh -i ~/.ssh/id_rsa h uptime", None),
+                            ("flock /tmp/l scp -i ~/.ssh/id_rsa a h:/b", None)])
+
     def test_a_date_format_is_not_a_force_push(self):
         self.assertAnswers([("git push origin v$(date +%s)", None),
                             ("git stash push -m \"wip $(date +%F)\"", None),
@@ -491,6 +514,10 @@ class Grep(Folder):
 
 class ProfilePatterns(Folder):
     FOLDER = {"ask": [], "deny": [gate.re.compile(r"(^|[/\s])finance-archive(/|\s|$)")]}
+
+    def test_the_documented_form_ignores_letter_case(self):
+        folder = {"ask": [], "deny": [gate.re.compile(r"(?i)(^|[/\s])finance-archive(/|\s|$)")]}
+        self.assertEqual(decide("cat Finance-Archive/a.csv", self.dir, folder), "deny")
 
     def test_the_documented_folder_pattern_catches_the_plain_forms(self):
         for command in ("cat finance-archive/a.csv", "cd finance-archive && cat a.csv", "ls finance-archive",

@@ -14,7 +14,7 @@ Edit `rules/profile.md`, or add more `.md` files in `rules/`. They load in every
 {
   "gate": {
     "ask": ["\\bnpm publish\\b", "\\bdocker push\\b"],
-    "deny": ["(^|[/\\s])finance-archive(/|\\s|$)"]
+    "deny": ["(?i)(^|[/\\s])finance-archive(/|\\s|$)"]
   }
 }
 ```
@@ -25,7 +25,7 @@ A pattern is searched in:
 - `Read /path`, `Edit /path`, `Write /path` or `NotebookEdit /path` for file tools, and `Grep <path> <glob>`
 - the tool name followed by its JSON input for MCP tools
 
-The folder pattern above catches `cat finance-archive/a.csv`, `cd finance-archive`, `ls finance-archive` and a quoted absolute path. Changes apply on the next tool call. A pattern that does not compile, or a `deny` that is not a list, makes the gate ask on every call, and `harness doctor` shows it.
+The folder pattern above catches `cat finance-archive/a.csv`, `cd finance-archive`, `ls finance-archive` and a quoted absolute path, in any letter case. It matches what the command says, so a glob (`cat fin*/a.csv`) or a recursive search from a parent folder still reaches the folder: keep what must stay out of reach outside the folders the agent works in. Changes apply on the next tool call. A pattern that does not compile, or a `deny` that is not a list, makes the gate ask on every call, and `harness doctor` shows it.
 
 ## Skills and agents
 

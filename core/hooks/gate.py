@@ -42,7 +42,8 @@ KEY_FLAGS = {"ssh": {"-i"}, "scp": {"-i"}, "sftp": {"-i"}, "curl": TLS_KEY_FLAGS
              "grep": {"--exclude", "--exclude-dir"}}
 # Words that may stand before a segment's own program.
 LEADERS = {"sudo", "doas", "time", "nice", "ionice", "nohup", "timeout", "env", "command", "exec",
-           "stdbuf", "xargs", "if", "then", "else", "elif", "do", "while", "until", "!", "{"}
+           "stdbuf", "xargs", "gtimeout", "sshpass", "setsid", "caffeinate", "flock",
+           "if", "then", "else", "elif", "do", "while", "until", "!", "{"}
 
 SSH_PUBLIC = re.compile(r"(\.pub|^known_hosts.*|^authorized_keys|^config)$")
 SECRET_NAMES = {".envrc", ".netrc", ".pgpass", ".pypirc", ".git-credentials", ".npmrc", ".my.cnf",
@@ -122,6 +123,8 @@ OPENER = re.compile(r"""^<<-?[ \t]*\\?|['"]""")
 SEGMENT = re.compile(r"[;|&\n]")
 ASSIGNMENTS = re.compile(r"\s*(?:[A-Za-z_]\w*=\S*\s+)+")
 WORD_BREAK = re.compile(r"""[\s'"`()<>=,:@]+|\$\(""")
+EMPTY_FLAG = re.compile(r"(\s--[\w-]+=)(?=\s|$)")     # --flag= has a value: the empty one
+DROPPED = re.compile(r"(?<!\S)\0+(?!\S)")              # a word made only of dropped quotes
 # Not a local file: a URL (file:// is one) and the value of --exclude= or git log --grep=.
 NOT_A_FILE = re.compile(r"""(?i)(?<![a-z0-9+.-])(?!file:)[a-z][a-z0-9+.-]*://[^\s$`'"<>]*|"""
                         r"""(?:--exclude=|--grep=|(?<![\w.-]):(?:\(exclude\)|!|\^))"""
@@ -134,7 +137,7 @@ def base(name):
 
 
 def split_words(text):
-    return [w for w in WORD_BREAK.split(text) if w]
+    return [w for w in WORD_BREAK.split(EMPTY_FLAG.sub(r"\1_", text)) if w]
 
 
 def phrase(text, cwd):
@@ -165,7 +168,7 @@ def remove_data(s, cwd):
         in_string = stack[-1:] == ['"']
         m = (IN_STRING if in_string else IN_CODE).search(s, i)
         if not m:
-            return "".join(out) + s[i:], not stack
+            return DROPPED.sub("_", "".join(out) + s[i:]).replace("\0", ""), not stack
         out.append(s[i:m.start()])
         i, token = m.end(), m.group()
         if token[0] == "\\":
@@ -175,10 +178,7 @@ def remove_data(s, cwd):
         elif token in ("'", '"'):               # a string that holds code, or never closes
             stack.append('"')
         elif token[0] in "'\"" or token.startswith("$'"):
-            value = phrase(token.lstrip("$")[1:-1], cwd)
-            around = s[m.start() - 1:m.start()] + s[i:i + 1]
-            alone = not around.strip(" \t\n'\"")
-            out.append(value or ("_" if alone else ""))    # a dropped word keeps its place
+            out.append(phrase(token.lstrip("$")[1:-1], cwd) or "\0")
         elif token == "\n":
             out.append(token)
             i, closed = skip_bodies(s, i, openers, out)
@@ -204,8 +204,9 @@ def runs_text(words, segment):
     names = set(map(base, words))
     if words[:1] == ["."] or names & RUNNERS or ("find" in names and names & FIND_EXEC):
         return True
-    only_flags = all(w.startswith("-") or w == "_" for w in words[1:])   # no script: reads stdin
+    only_flags = all(w.startswith("-") for w in words[1:])      # no script: it reads stdin
     reads_code = only_flags or re.search("<[<(]", segment) or any(map(INLINE_CODE.match, words))
+    reads_code = reads_code or ("php" in names and {"-R", "-B"}.intersection(words))
     return reads_code and any(map(INTERPRETER.match, names))
 
 

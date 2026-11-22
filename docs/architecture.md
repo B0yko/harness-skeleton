@@ -31,7 +31,7 @@ Uninstall reads the manifest. It removes a link only if it still points where th
 
 Uninstall never deletes your files. `~/.harness` stays whole, with the core clone and your profile, and uninstall prints the one command that removes it. Installing again picks both up. If the folder was deleted by hand, the hooks are still in `settings.json` and block every gated call; the block message and the README name the fix, which is to run the install command again.
 
-If the manifest is lost, uninstall cannot tell who made a link, so it removes every link in `rules`, `skills` and `agents` that points into `~/.harness`, including one you made yourself. The files behind those links stay.
+If the manifest is lost, uninstall cannot tell who made a link, so it removes every link in `rules`, `skills` and `agents` that points into `~/.harness`, including one you made yourself. The files behind those links stay. A memory setting equal to the profile's memory folder counts as ours in that case too.
 
 ## The gate
 
@@ -59,7 +59,7 @@ Secret files are SSH private keys, `.env` files, `.netrc`, cloud and Claude Code
 
 `process.env`, `process.env.NODE_ENV` and a jq path such as `.data.key` or `.items[].key` are read as code unless a file of that name exists in the working directory. `~/.claude/settings.json` is not treated as a secret, because agents read and edit it in normal work, so do not keep tokens there if that matters to you.
 
-Three things pass although they name a secret. A key used without being printed: `-i` for `ssh`, `scp` and `sftp`, `--key`, `--cert`, `--cacert` and `--ca-certificate` for `curl` and `wget`, and `-E` for `curl`, when that program is the first one in the segment (`sudo`, `time` or a `VAR=value` in front is fine). An exclusion: `--exclude=.env`, `--exclude .env` for `rsync`, `tar`, `diff` and `grep` (not after `--`), a git pathspec such as `':(exclude).env'` or `':!.env'`, and `-x .env` for `diff` and `zip`. The search text of `git log --grep=.env`.
+Three things pass although they name a secret. A key used without being printed: `-i` for `ssh`, `scp` and `sftp`, `--key`, `--cert`, `--cacert` and `--ca-certificate` for `curl` and `wget`, `--certificate` and `--private-key` for `wget`, and `-E` for `curl`, when that program is the first one in the segment (`sudo`, `time` or a `VAR=value` in front is fine). Behind a wrapper the gate does not know, such as `find -exec` or `parallel`, the same key gets a question or a deny. An exclusion: `--exclude=.env`, `--exclude .env` for `rsync`, `tar`, `diff` and `grep`, `--exclude-dir .env` for `grep` (not after `--`), a git pathspec such as `':(exclude).env'` or `':!.env'`, and `-x .env` for `diff` and `zip`. The search text of `git log --grep=.env`.
 
 An unquoted glob is expanded against the call's real working directory and answered by what it matches, so `du -sh *` passes in a clean folder. It follows the shell on dotfiles: `*` skips `.env`, so `grep foo *` passes beside one, while `cat .*` is denied. A glob whose own text names a secret (`*.env`) counts even with no match.
 
@@ -93,6 +93,7 @@ It reads the command text and cannot know what a program will do. Each of these 
 - encoded commands: `echo cm0gLXJmIHg= | base64 -d | sh`
 - a renamed binary: `cp /bin/rm r; ./r -rf x`
 - brace expansion: `cat {.env,a}`
+- a key tool's name as an argument behind a wrapper: `sudo cp ssh -i .env dst/`
 - a directory change before a read: `cd ~/.config/gh && cat hosts.yml`, or `cd sub && cat 'my dir/.env'`
 - text a program runs by itself: `awk 'BEGIN{system("rm -rf x")}'`, `env -S 'rm -rf x'`, a git alias set with `git -c`, `git rebase -x`, `npx -c`, `su -c`, `tmux new`
 - a `#` inside a parameter expansion, read as a comment: `echo ${x:- #}; rm -rf x`

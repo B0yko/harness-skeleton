@@ -9,7 +9,7 @@ import gate
 
 NONE = {"ask": [], "deny": []}
 LIMITS = ("python3 read_key.py", "f=.en; cat ${f}v", "cat $'\\x2eenv'", "echo cm0gLXJmIHg= | base64 -d | sh",
-          "cp /bin/rm r; ./r -rf x", "cat {.env,a}", "cd ~/.config/gh && cat hosts.yml", "grep -r TOKEN .",
+          "cp /bin/rm r; ./r -rf x", "sudo cp ssh -i .env dst/", "cat {.env,a}", "cd ~/.config/gh && cat hosts.yml", "grep -r TOKEN .",
           "shopt -s dotglob; cat *", "cd sub && cat 'my dir/.env'", "cat${IFS}.env", "echo ${x:- #}; rm -rf x", "R=rm; $R -rf target",
           "${SHELL:-sh} -c 'rm -rf target'", "rm --rec --for t", "git reset --har")
 FALSE_QUESTIONS = ("git diff $(git merge-base main HEAD)", "echo rm -rf build", "python3 -m app.env",

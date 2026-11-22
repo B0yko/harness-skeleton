@@ -16,7 +16,7 @@ python3 --version    # 3.9 or later
 claude --version     # 2.1.295 or later
 ```
 
-If git or Python is missing or too old, stop and tell the user what to install. An older Claude Code ignores `onFailure`, so a broken gate would let calls through: ask the user to run `claude update` first.
+If git or Python is missing or too old, stop and tell the user what to install. An older Claude Code ignores `onFailure`, so a broken gate would let calls through: ask the user to run `claude update`, and go on once the version is right. If `claude` is missing, stop and tell the user to install Claude Code.
 
 ## 2. Inspect the existing config
 
@@ -45,11 +45,11 @@ This writes nothing outside the temp folder, which you can leave for the OS to c
 curl -fsSL https://raw.githubusercontent.com/B0yko/harness-skeleton/main/install.sh | bash
 ```
 
-The CLI is now at `~/.local/bin/harness`. If that folder is not on `PATH`, use the full path and tell the user.
+The CLI is now at `~/.local/bin/harness`. If that folder is not on `PATH`, use the full path and tell the user. The installer's last line suggests a new session: stay here and go on to step 5.
 
 ## 5. Ask the user
 
-Ask these in one message, at most once. Skip any the user already answered, and accept "skip" for any of them.
+Ask these in one message, at most once. Skip any the user already answered, and accept "skip" for any of them. If nobody can answer, as in an unattended run, skip this step and say so in the report.
 
 1. What should I call you?
 2. Which language should I use with you?
@@ -61,13 +61,13 @@ Ask these in one message, at most once. Skip any the user already answered, and 
 
 Write the answers into `~/.harness/profile/rules/profile.md`, one line each. Leave out anything the user skipped.
 
-For answer 5, also add a pattern to `gate.deny` in `~/.harness/profile/profile.json` when the answer is a path or a command. Patterns are Python regular expressions. For a folder:
+For answer 5, also add a pattern to `gate.deny` in `~/.harness/profile/profile.json` when the answer is a path or a command. Patterns are Python regular expressions. Add it to the existing `deny` list and keep every other key in the file. For a folder:
 
 ```json
-{ "gate": { "ask": [], "deny": ["(^|[/\\s])finance-archive(/|\\s|$)"] } }
+"deny": ["(?i)(^|[/\\s])finance-archive(/|\\s|$)"]
 ```
 
-This form also catches relative paths. Keep the `budgets` and `memory` keys as they are. Leave `memory.shared` at `false` unless the user asks for one memory across all projects: with `true`, notes from one project load in every project. A pattern that does not compile makes the gate ask on every call, so run step 7 after each edit.
+This form also catches relative paths and another letter case. It matches what the command says, so a glob (`cat fin*/a.csv`) or a recursive search from a parent folder still reaches the folder: if something must stay out of reach, tell the user to keep it outside the folders the agent works in. Leave `memory.shared` at `false` unless the user asks for one memory across all projects: with `true`, notes from one project load in every project. A pattern that does not compile makes the gate ask on every call, so run step 7 after each edit.
 
 ## 7. Run doctor
 
