@@ -1,0 +1,13 @@
+{
+  "gate": {
+    "ask": [],
+    "deny": []
+  },
+  "memory": {
+    "shared": false
+  },
+  "budgets": {
+    "loaded_chars": 8000,
+    "hooks": 4
+  }
+}

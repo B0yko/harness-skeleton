@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|Monitor|Read|Edit|Write|NotebookEdit|Grep)$|^mcp__",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/env python3 -I -S {core}/core/hooks/gate.py --profile {profile} || { rc=$?; [ -e {core}/core/hooks/gate.py ] || echo 'harness gate is missing. If ~/.harness was removed, run this in a terminal: curl -fsSL https://raw.githubusercontent.com/B0yko/harness-skeleton/main/install.sh | bash' >&2; exit $rc; }",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/env python3 -I -S {core}/core/hooks/session_start.py --profile {profile}",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
